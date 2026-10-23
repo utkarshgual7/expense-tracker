@@ -10,14 +10,13 @@ import {
 import { pool, type ExpenseRow } from "../lib/db.ts";
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
-const toYmd = (d: Date) => d.toISOString().slice(0, 10);
 
 const serialize = (r: ExpenseRow): Expense => ({
   id: r.id,
   title: r.title,
   amount: Number(r.amount),
   category: r.category,
-  date: toYmd(r.date),
+  date: r.date,
   createdAt: r.created_at.toISOString(),
 });
 

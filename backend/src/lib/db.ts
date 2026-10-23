@@ -1,4 +1,9 @@
-import { Pool } from "pg";
+import { Pool, types } from "pg";
+
+// A DATE has no timezone, but node-postgres parses it into a local-midnight Date,
+// which shifts the day when serialized back via toISOString(). Keep DATE as the
+// "YYYY-MM-DD" text Postgres sent.
+types.setTypeParser(types.builtins.DATE, (v) => v);
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) throw new Error("DATABASE_URL is required");
@@ -20,6 +25,6 @@ export type ExpenseRow = {
   title: string;
   amount: string;
   category: "food" | "travel" | "bills" | "other";
-  date: Date;
+  date: string; // YYYY-MM-DD, parsed as text (see setTypeParser above)
   created_at: Date;
 };
