@@ -1,7 +1,11 @@
 {
   "name": "expense-tracker",
   "private": true,
-  "workspaces": ["apps/*", "packages/*"],
+  "workspaces": [
+    "backend",
+    "frontend",
+    "shared"
+  ],
   "scripts": {
     "dev": "npm run dev --workspaces --if-present",
     "build": "npm run build --workspaces --if-present"

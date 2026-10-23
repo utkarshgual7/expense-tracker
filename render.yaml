@@ -1,19 +1,19 @@
 services:
-  # Backend: standalone Hono API + Prisma against Supabase Postgres
+  # Backend: standalone Hono API talking to Supabase via supabase-js
   - type: web
     name: expense-api
     runtime: node
     plan: free
     rootDir: .
-    buildCommand: npm ci && npm run build -w @expense/api
-    startCommand: npm run migrate -w @expense/api && npm start -w @expense/api
+    buildCommand: npm ci && npm run build -w @expense/backend
+    startCommand: npm start -w @expense/backend
     healthCheckPath: /health
     envVars:
       - key: NODE_VERSION
         value: 22
-      - key: DATABASE_URL
+      - key: SUPABASE_URL
         sync: false
-      - key: DIRECT_URL
+      - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
       # Must list the deployed web origin, e.g. https://expense-web.onrender.com
       - key: CORS_ORIGINS
@@ -25,8 +25,8 @@ services:
     runtime: node
     plan: free
     rootDir: .
-    buildCommand: npm ci && npm run build -w @expense/web
-    startCommand: npm start -w @expense/web
+    buildCommand: npm ci && npm run build -w @expense/frontend
+    startCommand: npm start -w @expense/frontend
     envVars:
       - key: NODE_VERSION
         value: 22
