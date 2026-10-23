@@ -15,35 +15,7 @@ create table expenses (
 create index expenses_date_idx on expenses (date desc);
 create index expenses_category_date_idx on expenses (category, date desc);
 
--- The API talks to Postgres with the service role key, so RLS is enabled with no
--- public policy: anon/authenticated clients get nothing, the API bypasses RLS.
+-- The API connects as a Postgres role over the pooler, which is not subject to RLS.
+-- RLS is still enabled with no policy so that the anon/authenticated API keys, which
+-- are safe to expose, cannot read or write this table directly.
 alter table expenses enable row level security;
-
--- PostgREST can't SUM over a filtered set, and pulling every matching row into the
--- API to add it up does not scale. These two functions keep the aggregation in Postgres.
-
-create or replace function expenses_totals(
-  p_category category default null,
-  p_from     date     default null,
-  p_to       date     default null
-) returns table (total_count bigint, total_amount numeric)
-language sql
-stable
-as $$
-  select count(*)::bigint, coalesce(sum(amount), 0)
-  from expenses
-  where (p_category is null or category = p_category)
-    and (p_from     is null or date >= p_from)
-    and (p_to       is null or date <= p_to);
-$$;
-
-create or replace function expenses_monthly_summary(p_month date)
-returns table (category category, total numeric)
-language sql
-stable
-as $$
-  select category, sum(amount)
-  from expenses
-  where date >= p_month and date < (p_month + interval '1 month')
-  group by category;
-$$;

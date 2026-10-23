@@ -1,0 +1,99 @@
+@import "tailwindcss";
+
+/*
+  Ledger: paper, hairline rules, one ink-blue accent, a right-aligned money column.
+  Every colour below is opaque so contrast is measurable (no rgba text).
+*/
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+
+  --color-paper: var(--paper);
+  --color-panel: var(--panel);
+  --color-rule: var(--rule);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-faint: var(--ink-faint);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-wash: var(--accent-wash);
+  --color-danger: var(--danger);
+  --color-danger-wash: var(--danger-wash);
+
+  --color-cat-food: var(--cat-food);
+  --color-cat-travel: var(--cat-travel);
+  --color-cat-bills: var(--cat-bills);
+  --color-cat-other: var(--cat-other);
+}
+
+:root {
+  --paper: #faf9f7;
+  --panel: #ffffff;
+  --rule: #e2ded6;
+  --ink: #17161a; /* 16.8:1 on paper */
+  --ink-soft: #55525c; /* 7.3:1 on paper — safe for body text */
+  --ink-faint: #6e6a74; /* 5.2:1 on paper — safe for meta text */
+  --accent: #2f4a7d; /* 8.2:1 on paper */
+  --accent-soft: #3d5f9e; /* graphics/bars, >=3:1 */
+  --accent-wash: #eef1f7;
+  --danger: #b3261e; /* 6.4:1 on paper */
+  --danger-wash: #fdf2f1;
+
+  /* Category hues: dark enough to pass 4.5:1 on paper AND on panel,
+     so the same token works for the swatch, the bar and the label. */
+  --cat-food: #9a4a16;
+  --cat-travel: #1f5f70;
+  --cat-bills: #6b3f8f;
+  --cat-other: #5a5a5e;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #15151a;
+    --panel: #1d1d23;
+    --rule: #33333c;
+    --ink: #f3f1ee; /* 15.4:1 on dark paper */
+    --ink-soft: #b8b4bd; /* 8.4:1 */
+    --ink-faint: #9a96a1; /* 5.8:1 */
+    --accent: #9db8e8;
+    --accent-soft: #7f9fd8;
+    --accent-wash: #22262f;
+    --danger: #f5a79f;
+    --danger-wash: #2b1c1b;
+
+    --cat-food: #e0a173;
+    --cat-travel: #7fc3d4;
+    --cat-bills: #c3a0e0;
+    --cat-other: #a8a8ae;
+  }
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+/* WCAG 2.4.11: 3px ring, offset, high contrast against both themes. */
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* The date/month pickers' native icons are near-invisible on dark paper. */
+@media (prefers-color-scheme: dark) {
+  input[type="date"],
+  input[type="month"] {
+    color-scheme: dark;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

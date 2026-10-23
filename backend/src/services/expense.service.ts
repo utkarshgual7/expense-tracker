@@ -7,28 +7,28 @@ import {
   type ExpenseSummaryResponse,
   type ListExpensesQuery,
 } from "@expense/shared";
-import { supabase, type ExpenseRow } from "../lib/supabase.ts";
+import { pool, type ExpenseRow } from "../lib/db.ts";
 
-const TABLE = "expenses";
 const round2 = (n: number) => Math.round(n * 100) / 100;
+const toYmd = (d: Date) => d.toISOString().slice(0, 10);
 
 const serialize = (r: ExpenseRow): Expense => ({
   id: r.id,
   title: r.title,
   amount: Number(r.amount),
   category: r.category,
-  date: r.date,
-  createdAt: new Date(r.created_at).toISOString(),
+  date: toYmd(r.date),
+  createdAt: r.created_at.toISOString(),
 });
 
 export async function createExpense(input: CreateExpenseInput): Promise<Expense> {
-  const { data, error } = await supabase
-    .from(TABLE)
-    .insert({ title: input.title, amount: input.amount, category: input.category, date: input.date })
-    .select()
-    .single<ExpenseRow>();
-  if (error) throw new Error(error.message);
-  return serialize(data);
+  const { rows } = await pool.query<ExpenseRow>(
+    `insert into expenses (title, amount, category, date)
+     values ($1, $2, $3, coalesce($4::date, current_date))
+     returning *`,
+    [input.title, input.amount, input.category, input.date ?? null],
+  );
+  return serialize(rows[0]);
 }
 
 export async function listExpenses({
@@ -38,55 +38,53 @@ export async function listExpenses({
   page,
   limit,
 }: ListExpensesQuery): Promise<ExpenseListResponse> {
-  let rows = supabase
-    .from(TABLE)
-    .select("*")
-    .order("date", { ascending: false })
-    .order("created_at", { ascending: false })
-    .range((page - 1) * limit, page * limit - 1);
-  if (category) rows = rows.eq("category", category);
-  if (from) rows = rows.gte("date", from);
-  if (to) rows = rows.lte("date", to);
+  // One WHERE clause, one parameter list, used by both queries below so the page
+  // and the totals can never drift apart. Nulls mean "no filter".
+  const where = `where ($1::category is null or category = $1)
+                   and ($2::date is null or date >= $2)
+                   and ($3::date is null or date <= $3)`;
+  const filters = [category ?? null, from ?? null, to ?? null];
 
-  // The page and the totals are separate queries, run concurrently. Totals come from a
-  // SQL function so count and sum cover the whole filtered set and are computed in
-  // Postgres — never from the rows on this page, and never summed in JS.
-  const [pageRes, totalsRes] = await Promise.all([
-    rows,
-    supabase
-      .rpc("expenses_totals", {
-        p_category: category ?? null,
-        p_from: from ?? null,
-        p_to: to ?? null,
-      })
-      .single<{ total_count: number; total_amount: string }>(),
+  // Page rows and totals run concurrently. The totals are aggregated in Postgres over
+  // the whole filtered set — never derived from the rows on this page.
+  const [page_, totals] = await Promise.all([
+    pool.query<ExpenseRow>(
+      `select * from expenses ${where}
+       order by date desc, created_at desc
+       limit $4 offset $5`,
+      [...filters, limit, (page - 1) * limit],
+    ),
+    pool.query<{ total_count: string; total_amount: string }>(
+      `select count(*) as total_count, coalesce(sum(amount), 0) as total_amount
+       from expenses ${where}`,
+      filters,
+    ),
   ]);
 
-  if (pageRes.error) throw new Error(pageRes.error.message);
-  if (totalsRes.error) throw new Error(totalsRes.error.message);
-
   return {
-    items: (pageRes.data as ExpenseRow[]).map(serialize),
-    total_count: Number(totalsRes.data.total_count),
-    total_amount: round2(Number(totalsRes.data.total_amount)),
+    items: page_.rows.map(serialize),
+    total_count: Number(totals.rows[0].total_count),
+    total_amount: round2(Number(totals.rows[0].total_amount)),
   };
 }
 
 /** Returns false when no expense has that id. */
 export async function deleteExpense(id: string): Promise<boolean> {
-  const { data, error } = await supabase.from(TABLE).delete().eq("id", id).select("id");
-  if (error) throw new Error(error.message);
-  return (data?.length ?? 0) > 0;
+  const { rowCount } = await pool.query("delete from expenses where id = $1", [id]);
+  return (rowCount ?? 0) > 0;
 }
 
 export async function monthlySummary(month: string): Promise<ExpenseSummaryResponse> {
-  const { data, error } = await supabase.rpc("expenses_monthly_summary", { p_month: `${month}-01` });
-  if (error) throw new Error(error.message);
+  const { rows } = await pool.query<{ category: Category; total: string }>(
+    `select category, sum(amount) as total
+     from expenses
+     where date >= $1::date and date < ($1::date + interval '1 month')
+     group by category`,
+    [`${month}-01`],
+  );
 
   const by_category = Object.fromEntries(CATEGORIES.map((c) => [c, 0])) as Record<Category, number>;
-  for (const row of (data ?? []) as { category: Category; total: string }[]) {
-    by_category[row.category] = round2(Number(row.total));
-  }
+  for (const r of rows) by_category[r.category] = round2(Number(r.total));
 
   return { month, by_category, total: round2(Object.values(by_category).reduce((a, b) => a + b, 0)) };
 }
