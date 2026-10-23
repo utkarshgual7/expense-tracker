@@ -1,7 +1,7 @@
 services:
-  # Backend: standalone Hono API talking to Supabase via supabase-js
+  # Backend: standalone Hono API over Supabase Postgres (node-postgres, raw SQL)
   - type: web
-    name: expense-api
+    name: expense-backend
     runtime: node
     plan: free
     rootDir: .
@@ -11,17 +11,18 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 22
-      - key: SUPABASE_URL
+      # Supabase → Connect → transaction pooler (port 6543), keep ?pgbouncer=true
+      - key: DATABASE_URL
         sync: false
-      - key: SUPABASE_SERVICE_ROLE_KEY
-        sync: false
-      # Must list the deployed web origin, e.g. https://expense-web.onrender.com
+      # Comma-separated browser origins allowed to call this API. Set it to the
+      # frontend's URL once that service exists, e.g.
+      # https://expense-frontend.onrender.com
       - key: CORS_ORIGINS
         sync: false
 
-  # Frontend: Next.js SSR, calls the API over HTTP
+  # Frontend: Next.js SSR, calls the backend over HTTP
   - type: web
-    name: expense-web
+    name: expense-frontend
     runtime: node
     plan: free
     rootDir: .
@@ -30,8 +31,10 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 22
+      # NEXT_PUBLIC_* is inlined at build time and read by the browser, so this
+      # must be the backend's full public origin (with https://), not a host:port.
+      # Render's `fromService` only exposes hostport, which would produce a URL the
+      # browser cannot fetch — so set it manually to the backend's URL, e.g.
+      # https://expense-backend.onrender.com, and redeploy the frontend if it changes.
       - key: NEXT_PUBLIC_API_URL
-        fromService:
-          name: expense-api
-          type: web
-          property: hostport
+        sync: false
