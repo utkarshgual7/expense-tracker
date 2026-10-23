@@ -1,0 +1,29 @@
+{
+  "name": "@expense/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "prisma generate && tsc",
+    "start": "node dist/api/src/index.js",
+    "migrate": "prisma migrate deploy"
+  },
+  "dependencies": {
+    "@expense/shared": "*",
+    "@hono/node-server": "^2.1.5",
+    "@prisma/adapter-pg": "^7.10.1",
+    "@prisma/client": "^7.10.1",
+    "dotenv": "^18.0.9",
+    "hono": "^4.13.13",
+    "pg": "^8.23.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/pg": "^8.23.1",
+    "prisma": "^7.10.1",
+    "tsx": "^4.23.15",
+    "typescript": "^5"
+  }
+}

@@ -1,0 +1,12 @@
+node_modules/
+.next/
+dist/
+*.tsbuildinfo
+.DS_Store
+
+# env files
+.env*
+!.env.example
+
+# generated prisma client
+apps/api/src/generated/
